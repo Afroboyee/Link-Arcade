@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Link Arcade</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Link Arcade">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0418">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600&family=Cinzel:wght@500;700&family=Cormorant+Garamond:wght@500;700&family=VT323&family=Inter:wght@400;600;700&display=swap">
+<style>
+/* ---------- base ---------- */
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font-family:var(--body-font);color:var(--text);background:var(--bg);background-attachment:fixed;transition:background .3s}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1500px;margin:0 auto;padding:0 18px 80px;position:relative;z-index:1}
+header{position:sticky;top:0;z-index:20;backdrop-filter:blur(8px);background:var(--header-bg);border-bottom:var(--line)}
+.top{max-width:1500px;margin:0 auto;display:flex;gap:14px;align-items:center;padding:12px 18px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.1;min-width:170px}
+.brand b{font-family:var(--head-font);font-size:var(--brand-size);color:var(--accent);text-shadow:var(--glow);letter-spacing:var(--brand-ls)}
+.brand small{opacity:.7;font-size:12px;margin-top:4px}
+.search{flex:1;min-width:220px;display:flex}
+.search input{width:100%;padding:10px 14px;background:var(--input-bg);border:var(--line);border-radius:var(--radius) 0 0 var(--radius);outline:none}
+.search input:focus{border-color:var(--accent);box-shadow:var(--glow-box)}
+.search button{border-radius:0 var(--radius) var(--radius) 0;border-left:none}
+.btn{padding:9px 14px;background:var(--btn-bg);border:var(--line);border-radius:var(--radius);cursor:pointer;white-space:nowrap;transition:.15s}
+.btn:hover{border-color:var(--accent);color:var(--accent);box-shadow:var(--glow-box)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.btn.primary:hover{color:var(--on-accent);filter:brightness(1.1)}
+.btn.danger:hover{border-color:var(--bad);color:var(--bad)}
+select.btn{appearance:auto}
+.hud{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 8px;font-family:var(--hud-font);font-size:var(--hud-size)}
+.hud .stat{padding:8px 12px;background:var(--panel);border:var(--line);border-radius:var(--radius)}
+.hud .stat i{font-style:normal;color:var(--accent)}
+.hud .stat.bad i{color:var(--bad)} .hud .stat.good i{color:var(--good)}
+.hpbar{flex:1;min-width:200px;display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--panel);border:var(--line);border-radius:var(--radius)}
+.hpbar .track{flex:1;height:12px;background:var(--bad);border-radius:var(--bar-radius);overflow:hidden}
+.hpbar .fill{height:100%;background:var(--good);width:0;transition:width .5s}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:8px 0 12px;scrollbar-width:thin}
+.chip{padding:7px 13px;border-radius:var(--chip-radius);background:var(--chip-bg);border:var(--line);cursor:pointer;white-space:nowrap;font-size:14px}
+.chip.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.tools .spacer{flex:1}
+.banner{margin:14px 0 0;padding:12px 14px;border:var(--line);border-left:4px solid var(--accent2);background:var(--panel);border-radius:var(--radius);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.banner p{margin:0;flex:1;min-width:240px}
+/* ---------- grid / cards ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:22px 18px}
+.card{position:relative;display:flex;flex-direction:column;gap:10px;transition:transform .15s}
+.card:hover{transform:var(--card-hover)}
+.thumb{position:relative;aspect-ratio:16/10;border-radius:var(--radius);overflow:hidden;background:var(--thumb-bg);border:var(--thumb-border);box-shadow:var(--thumb-shadow)}
+.thumb img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;filter:var(--thumb-filter);transition:filter .2s}
+.card:hover .thumb img{filter:none}
+.tile{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:var(--tile-bg);text-align:center;padding:10px}
+.tile .big{font-family:var(--head-font);font-size:42px;color:var(--accent);text-shadow:var(--glow)}
+.tile .dom{opacity:.75;font-size:13px;word-break:break-all}
+.badge{position:absolute;right:8px;bottom:8px;padding:3px 7px;font-size:12px;font-family:var(--hud-font);border-radius:var(--badge-radius);background:rgba(0,0,0,.78);color:#fff;letter-spacing:.5px}
+.badge.live{background:var(--good);color:#04150a}
+.badge.broken{background:var(--bad);color:#fff}
+.badge.checking{background:var(--accent2);color:#000}
+.card.broken .thumb img{filter:grayscale(1) brightness(.45)}
+.card.broken .thumb::after{content:var(--broken-text);position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--head-font);font-size:var(--broken-size);color:var(--bad);text-shadow:0 0 8px rgba(0,0,0,.9);background:rgba(0,0,0,.35);text-align:center;padding:10px}
+.meta{display:flex;gap:10px;align-items:flex-start}
+.ava{flex:0 0 36px;height:36px;border-radius:var(--ava-radius);background:var(--panel);border:var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;font-weight:700;color:var(--accent)}
+.ava img{width:22px;height:22px}
+.info{min-width:0;flex:1}
+.title{font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:var(--title-size)}
+.sub{font-size:13px;opacity:.7;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acts{position:absolute;top:8px;right:8px;display:flex;gap:6px;opacity:0;transition:.15s;z-index:3}
+.card:hover .acts,.card:focus-within .acts{opacity:1}
+.acts button{width:30px;height:30px;border-radius:var(--badge-radius);border:none;background:rgba(0,0,0,.8);color:#fff;cursor:pointer;font-size:14px}
+.acts button:hover{background:var(--accent);color:var(--on-accent)}
+.empty{padding:60px 20px;text-align:center;border:2px dashed var(--muted-line);border-radius:var(--radius);background:var(--panel)}
+.empty h2{font-family:var(--head-font);color:var(--accent);text-shadow:var(--glow);font-size:var(--empty-size)}
+/* ---------- modal ---------- */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal.open{display:flex}
+.box{width:min(620px,100%);max-height:90vh;overflow:auto;background:var(--modal-bg);border:var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--glow-box),0 20px 60px rgba(0,0,0,.5)}
+.box h3{margin:0 0 14px;font-family:var(--head-font);color:var(--accent);font-size:var(--h3-size)}
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;font-size:14px}
+.field input,.field textarea{padding:9px 11px;background:var(--input-bg);border:var(--line);border-radius:var(--radius);outline:none}
+.field textarea{min-height:150px;resize:vertical}
+.drop{padding:26px;text-align:center;border:2px dashed var(--muted-line);border-radius:var(--radius);cursor:pointer}
+.drop.over{border-color:var(--accent);background:var(--chip-bg)}
+.hint{font-size:13px;opacity:.75;line-height:1.5}
+.row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--accent);color:var(--on-accent);padding:10px 16px;border-radius:var(--radius);z-index:60;font-weight:600;display:none;max-width:90vw}
+.hidden{display:none!important}
+
+/* ================= THEMES ================= */
+/* 1. Neon Arcade */
+body[data-theme=arcade]{
+ --head-font:'Press Start 2P',monospace;--body-font:'Chakra Petch',sans-serif;--hud-font:'Press Start 2P',monospace;--hud-size:10px;
+ --brand-size:16px;--brand-ls:1px;--title-size:15px;--h3-size:13px;--empty-size:16px;--broken-size:18px;
+ --text:#f3e9ff;--accent:#ff2bd6;--accent2:#22f3ff;--on-accent:#12001a;--good:#39ff88;--bad:#ff3b3b;
+ --bg:linear-gradient(transparent 0 0),#0b0418;
+ --panel:rgba(30,8,52,.85);--header-bg:rgba(11,4,24,.85);--input-bg:#14062a;--btn-bg:#1c0838;--chip-bg:#1c0838;--modal-bg:#12052a;
+ --line:2px solid #4b1d7a;--muted-line:#6a2aa6;--radius:0px;--chip-radius:0;--badge-radius:0;--ava-radius:0;--bar-radius:0;
+ --glow:0 0 6px #ff2bd6,0 0 14px #ff2bd6;--glow-box:0 0 10px rgba(255,43,214,.55);
+ --thumb-bg:#14062a;--thumb-border:3px solid #22f3ff;--thumb-shadow:6px 6px 0 #ff2bd6;--thumb-filter:saturate(1.3) contrast(1.05);
+ --tile-bg:repeating-linear-gradient(45deg,#1a0733 0 10px,#22093f 10px 20px);
+ --card-hover:translate(-3px,-3px);--broken-text:"GAME OVER";
+}
+body[data-theme=arcade]::before{content:"";position:fixed;left:-50%;right:-50%;bottom:-10%;height:60vh;z-index:0;pointer-events:none;
+ background-image:linear-gradient(#ff2bd6 2px,transparent 2px),linear-gradient(90deg,#ff2bd6 2px,transparent 2px);background-size:60px 60px;
+ transform:perspective(500px) rotateX(62deg);opacity:.22;mask-image:linear-gradient(transparent,#000);animation:floor 3s linear infinite}
+@keyframes floor{to{background-position:0 60px,0 0}}
+body[data-theme=arcade]::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:70;background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 3px)}
+body[data-theme=arcade] .card:hover .thumb{box-shadow:9px 9px 0 #ff2bd6,0 0 22px #22f3ff}
+
+/* 2. Midnight Crypt */
+body[data-theme=crypt]{
+ --head-font:'Cinzel',serif;--body-font:'Cormorant Garamond',serif;--hud-font:'Cinzel',serif;--hud-size:13px;
+ --brand-size:24px;--brand-ls:3px;--title-size:18px;--h3-size:20px;--empty-size:26px;--broken-size:17px;
+ --text:#e6dcf5;--accent:#b894ff;--accent2:#7dffb0;--on-accent:#120a1f;--good:#5fe3a1;--bad:#e0445e;
+ --bg:radial-gradient(ellipse at 20% 0%,#2a1446 0%,transparent 55%),radial-gradient(ellipse at 90% 100%,#0e2b24 0%,transparent 50%),#07050c;
+ --panel:rgba(22,14,36,.78);--header-bg:rgba(8,5,14,.8);--input-bg:rgba(16,10,28,.9);--btn-bg:rgba(30,18,48,.8);--chip-bg:rgba(30,18,48,.8);--modal-bg:#100a1c;
+ --line:1px solid #4a3570;--muted-line:#4a3570;--radius:14px;--chip-radius:30px;--badge-radius:8px;--ava-radius:50%;--bar-radius:10px;
+ --glow:0 0 12px rgba(184,148,255,.7);--glow-box:0 0 18px rgba(125,255,176,.25);
+ --thumb-bg:#120b1e;--thumb-border:1px solid #6b4fa0;--thumb-shadow:inset 0 0 40px rgba(0,0,0,.8),0 8px 24px rgba(0,0,0,.6);--thumb-filter:sepia(.25) hue-rotate(220deg) brightness(.85) saturate(.9);
+ --tile-bg:radial-gradient(circle,#2a1a45,#0c0716);
+ --card-hover:translateY(-4px);--broken-text:"LOST TO THE VOID";
+}
+body[data-theme=crypt]::before{content:"";position:fixed;inset:-20%;z-index:0;pointer-events:none;opacity:.35;
+ background:radial-gradient(circle at 30% 40%,rgba(125,255,176,.12),transparent 30%),radial-gradient(circle at 70% 60%,rgba(184,148,255,.14),transparent 35%);animation:fog 18s ease-in-out infinite alternate}
+@keyframes fog{to{transform:translate(6%,-4%) scale(1.1)}}
+body[data-theme=crypt]::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.07;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+body[data-theme=crypt] .card:hover .thumb{box-shadow:0 0 0 1px #7dffb0,0 0 30px rgba(125,255,176,.35);animation:candle 1.6s infinite}
+@keyframes candle{50%{box-shadow:0 0 0 1px #b894ff,0 0 22px rgba(184,148,255,.4)}}
+
+/* 3. Green Terminal */
+body[data-theme=terminal]{
+ --head-font:'VT323',monospace;--body-font:'VT323',monospace;--hud-font:'VT323',monospace;--hud-size:18px;
+ --brand-size:30px;--brand-ls:2px;--title-size:20px;--h3-size:26px;--empty-size:34px;--broken-size:34px;
+ --text:#9dffb4;--accent:#33ff66;--accent2:#ffb000;--on-accent:#001a06;--good:#33ff66;--bad:#ff5533;
+ --bg:radial-gradient(ellipse at center,#04200c 0%,#000 75%);
+ --panel:rgba(0,20,6,.85);--header-bg:rgba(0,8,2,.9);--input-bg:#000;--btn-bg:#001306;--chip-bg:#001306;--modal-bg:#000a03;
+ --line:1px dashed #1f8a3c;--muted-line:#1f8a3c;--radius:0;--chip-radius:0;--badge-radius:0;--ava-radius:0;--bar-radius:0;
+ --glow:0 0 4px #33ff66,0 0 10px rgba(51,255,102,.6);--glow-box:0 0 8px rgba(51,255,102,.45);
+ --thumb-bg:#000;--thumb-border:1px solid #33ff66;--thumb-shadow:0 0 12px rgba(51,255,102,.25);--thumb-filter:grayscale(1) sepia(1) hue-rotate(70deg) saturate(3) brightness(.8);
+ --tile-bg:#000;--card-hover:none;--broken-text:"ERR_404";
+}
+body[data-theme=terminal]{text-shadow:0 0 3px rgba(51,255,102,.5);font-size:18px}
+body[data-theme=terminal]::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:70;background:repeating-linear-gradient(0deg,rgba(0,0,0,.25) 0 2px,transparent 2px 4px);animation:flick 4s infinite}
+@keyframes flick{0%,96%,100%{opacity:1}97%{opacity:.75}98%{opacity:1}99%{opacity:.85}}
+body[data-theme=terminal] .title::before{content:"> ";color:var(--accent2)}
+body[data-theme=terminal] .sub{font-size:16px}
+
+/* 4. Regular (light) */
+body[data-theme=regular]{
+ --head-font:'Inter',sans-serif;--body-font:'Inter',sans-serif;--hud-font:'Inter',sans-serif;--hud-size:13px;
+ --brand-size:20px;--brand-ls:0;--title-size:15px;--h3-size:18px;--empty-size:22px;--broken-size:16px;
+ --text:#1d2733;--accent:#1a73e8;--accent2:#f5a623;--on-accent:#fff;--good:#2fb36a;--bad:#d93025;
+ --bg:linear-gradient(#ffffff 0%,#e3f1ff 55%,#c6e2ff 100%);
+ --panel:rgba(255,255,255,.92);--header-bg:rgba(255,255,255,.88);--input-bg:#fff;--btn-bg:#fff;--chip-bg:#eef3f8;--modal-bg:#fff;
+ --line:1px solid #d5dde6;--muted-line:#b9c6d4;--radius:10px;--chip-radius:8px;--badge-radius:4px;--ava-radius:50%;--bar-radius:6px;
+ --glow:none;--glow-box:0 0 0 3px rgba(26,115,232,.18);
+ --thumb-bg:#e9eef4;--thumb-border:1px solid #d5dde6;--thumb-shadow:0 2px 8px rgba(30,50,80,.12);--thumb-filter:none;
+ --tile-bg:linear-gradient(135deg,#f4f8fc,#dfeaf6);--card-hover:translateY(-2px);--broken-text:"Broken link";
+}
+body[data-theme=regular]::before{content:"";position:fixed;left:0;right:0;bottom:0;height:170px;z-index:0;pointer-events:none;opacity:.55;background-repeat:repeat-x;background-position:bottom;background-size:auto 170px;
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='170'%3E%3Cg fill='%23a9b4c0'%3E%3Crect x='0' y='90' width='50' height='80'/%3E%3Crect x='55' y='40' width='40' height='130'/%3E%3Crect x='100' y='70' width='60' height='100'/%3E%3Crect x='165' y='20' width='35' height='150'/%3E%3Crect x='205' y='100' width='55' height='70'/%3E%3Crect x='265' y='55' width='45' height='115'/%3E%3Crect x='315' y='85' width='70' height='85'/%3E%3Crect x='390' y='30' width='40' height='140'/%3E%3Crect x='435' y='75' width='55' height='95'/%3E%3Crect x='495' y='50' width='45' height='120'/%3E%3Crect x='545' y='95' width='55' height='75'/%3E%3C/g%3E%3Cg fill='%23c3ccd6'%3E%3Crect x='30' y='120' width='40' height='50'/%3E%3Crect x='140' y='110' width='45' height='60'/%3E%3Crect x='300' y='120' width='40' height='50'/%3E%3Crect x='470' y='115' width='50' height='55'/%3E%3C/g%3E%3C/svg%3E")}
+body[data-theme=regular] .badge.live{color:#fff}
+
+@media (max-width:640px){.brand{min-width:0}.grid{grid-template-columns:1fr 1fr;gap:14px 10px}.title{font-size:14px}.acts{opacity:1}}
+@media (max-width:420px){.grid{grid-template-columns:1fr}}
+
+.steps{margin:0 0 6px;padding-left:22px;line-height:1.7}
+.steps code{background:var(--input-bg);padding:1px 6px;border:var(--line)}
+.card.broken .tile{opacity:.2}
+@media (hover:none){.acts{opacity:1}}
+body{padding-top:env(safe-area-inset-top)}
+</style>
+</head>
+<body data-theme="arcade">
+<header>
+ <div class="top">
+  <div class="brand"><b>LINK ARCADE</b><small id="tagline">insert coin · all your bookmarks</small></div>
+  <form class="search" id="searchForm"><input id="q" type="search" placeholder="Search bookmarks…  (press /)" autocomplete="off"><button class="btn" type="submit">Search</button></form>
+  <button class="btn primary" id="addBtn">+ Add bookmarks</button>
+  <select class="btn" id="theme" title="Theme">
+   <option value="arcade">Theme: Neon Arcade</option>
+   <option value="crypt">Theme: Midnight Crypt</option>
+   <option value="terminal">Theme: Green Terminal</option>
+   <option value="regular">Theme: Regular (light)</option>
+  </select>
+ </div>
+</header>
+<div class="wrap">
+ <div class="banner hidden" id="blockedBanner">
+  <p><b>Preview mode.</b> claude.ai blocks pictures from other websites, so screenshots and link checks can't run on this page. Install the free <b>Link Arcade extension</b> for Chrome or Edge: it shows all your bookmarks automatically with screenshots and flags the broken ones.</p>
+  <button class="btn primary" id="getExt">Get the extension</button>
+ </div>
+ <div class="hud" id="hud"></div>
+ <div class="chips" id="chips"></div>
+ <div class="tools">
+  <button class="btn" data-filter="all">All</button>
+  <button class="btn" data-filter="live">Live</button>
+  <button class="btn" data-filter="broken">Broken</button>
+  <button class="btn" data-filter="unknown">Not checked</button>
+  <select class="btn" id="sort">
+   <option value="new">Newest first</option><option value="old">Oldest first</option>
+   <option value="az">A to Z</option><option value="site">By website</option><option value="broken">Broken first</option>
+  </select>
+  <span class="spacer"></span>
+  <button class="btn" id="recheck">↻ Check all links</button>
+  <button class="btn danger" id="purge">Remove broken</button>
+  <button class="btn" id="backup">Save backup</button>
+  <button class="btn" id="restore">Load backup</button>
+  <input type="file" id="restoreFile" accept=".json,application/json" class="hidden">
+ </div>
+ <div class="grid" id="grid"></div>
+ <div class="empty hidden" id="empty"></div>
+</div>
+
+<div class="modal" id="addModal"><div class="box">
+ <h3>Add bookmarks</h3>
+ <p class="hint ext-only hidden">Anything you add here is saved to your browser's bookmarks too. You can also just click the ☆ star in the address bar like normal, and it shows up here.</p>
+ <div class="tabs">
+  <button class="btn primary file-tab" data-tab="file">From a bookmarks file</button>
+  <button class="btn" data-tab="paste">Paste links</button>
+  <button class="btn" data-tab="one">Add one</button>
+ </div>
+ <div data-pane="file">
+  <div class="drop" id="drop">Drop your bookmarks file here, or <u>click to choose it</u><input type="file" id="bmFile" accept=".html,.htm,text/html" class="hidden"></div>
+  <p class="hint"><b>Chrome:</b> Ctrl+Shift+O → ⋮ menu (top right) → Export bookmarks.<br><b>Edge:</b> Ctrl+Shift+O → ⋯ → Export favorites.<br><b>Firefox:</b> Ctrl+Shift+O → Import and Backup → Export Bookmarks to HTML.<br>Your folders become the filter buttons at the top.</p>
+ </div>
+ <div data-pane="paste" class="hidden">
+  <div class="field"><label>One link per line. You can also write <i>Title | https://link</i></label><textarea id="pasteBox" placeholder="https://www.youtube.com/watch?v=...&#10;My bank | https://example.com"></textarea></div>
+  <div class="field"><label>Folder (optional)</label><input id="pasteFolder" placeholder="e.g. Work"></div>
+  <div class="row"><button class="btn primary" id="pasteGo">Add links</button></div>
+ </div>
+ <div data-pane="one" class="hidden">
+  <div class="field"><label>Link</label><input id="oneUrl" placeholder="https://"></div>
+  <div class="field"><label>Title (optional)</label><input id="oneTitle"></div>
+  <div class="field"><label>Folder (optional)</label><input id="oneFolder"></div>
+  <div class="row"><button class="btn primary" id="oneGo">Add</button></div>
+ </div>
+ <div class="row"><button class="btn" data-close>Close</button></div>
+</div></div>
+
+<div class="modal" id="editModal"><div class="box">
+ <h3>Edit bookmark</h3>
+ <div class="field"><label>Title</label><input id="eTitle"></div>
+ <div class="field"><label>Link</label><input id="eUrl"></div>
+ <div class="field"><label>Folder</label><input id="eFolder"></div>
+ <div class="row"><button class="btn danger" id="eDelete">Delete</button><span style="flex:1"></span><button class="btn" data-close>Cancel</button><button class="btn primary" id="eSave">Save</button></div>
+</div></div>
+
+<div class="modal" id="askModal"><div class="box">
+ <h3 id="askTitle">Are you sure?</h3><p id="askText"></p>
+ <div class="row"><button class="btn" data-close>Cancel</button><button class="btn primary" id="askYes">Yes</button></div>
+</div></div>
+
+<div class="modal" id="extModal"><div class="box">
+ <h3>Install Link Arcade (free, 1 minute)</h3>
+ <ol class="steps">
+  <li>Click <b>Download extension</b> below, then unzip it (right-click → Extract All).</li>
+  <li>In Chrome go to <code>chrome://extensions</code> (Edge: <code>edge://extensions</code>).</li>
+  <li>Turn on <b>Developer mode</b> (top right in Chrome, left side in Edge).</li>
+  <li>Click <b>Load unpacked</b> and pick the unzipped <b>link-arcade</b> folder.</li>
+  <li>Click the puzzle-piece icon, pin <b>Link Arcade</b>, and click it anytime to see your bookmarks.</li>
+ </ol>
+ <p class="hint">It only reads your bookmarks and visits each bookmarked page once to see if it's still working. Nothing is sent anywhere else, and there's no account or cost.</p>
+ <div class="row"><button class="btn" data-close>Close</button><button class="btn primary" id="extGo">Download extension</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+<script>
+/* Link Arcade — bookmark picture wall.
+   Runs three ways:
+   - as a Chrome/Edge extension page: reads the browser's real bookmarks and checks links properly
+   - as a plain web page/file: bookmarks imported from a file, kept in this browser
+   - on claude.ai: preview mode (outside pictures are blocked there) + extension download */
+(function(){
+"use strict";
+const EXT = typeof chrome!=='undefined' && !!(chrome.bookmarks && chrome.bookmarks.getTree);
+const KEY='linkArcade.v1', STATUS_KEY='linkArcade.status', THEME_KEY='linkArcade.theme';
+const TAGS={arcade:'insert coin · all your bookmarks',crypt:'the archive of forgotten links',terminal:'$ ls ~/bookmarks --visual',regular:'All your bookmarks in one place'};
+const $=s=>document.querySelector(s);
+const state={items:[],folder:'All',filter:'all',sort:'new',q:'',remote:EXT?true:null};
+
+/* ---------- helpers ---------- */
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function host(u){try{return new URL(u).hostname.replace(/^www\./,'')}catch(e){return u}}
+function norm(u){
+  u=String(u||'').trim(); if(!u) return '';
+  if(!/^[a-z][a-z0-9+.-]*:/i.test(u)) u='https://'+u;
+  try{const x=new URL(u); if(!/^https?:$/.test(x.protocol)) return ''; return x.href}catch(e){return ''}
+}
+const key=u=>u.replace(/^https?:\/\/(www\.)?/,'').replace(/\/$/,'').toLowerCase();
+function ytId(u){try{const x=new URL(u);const h=x.hostname.replace(/^www\.|^m\./,'');
+  if(h==='youtu.be') return x.pathname.slice(1).split('/')[0];
+  if(h.endsWith('youtube.com')){ if(x.searchParams.get('v')) return x.searchParams.get('v'); const m=x.pathname.match(/\/(shorts|embed|live)\/([\w-]{6,})/); if(m) return m[2]; }
+ }catch(e){} return null}
+function ago(t){const s=(Date.now()-t)/1000; if(s<3600) return 'just now'; const d=Math.floor(s/86400); if(d<1) return Math.floor(s/3600)+'h ago'; if(d<30) return d+'d ago'; if(d<365) return Math.floor(d/30)+'mo ago'; return Math.floor(d/365)+'y ago'}
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',3000)}
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const letter=u=>(host(u)[0]||'?').toUpperCase();
+function lsGet(k,d){try{const v=JSON.parse(localStorage.getItem(k)||'null');return v??d}catch(e){return d}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+
+/* ---------- storage: browser bookmarks (extension) or local list ---------- */
+let statusCache=lsGet(STATUS_KEY,{});
+function remember(b){ if(EXT){ statusCache[b.url]={status:b.status==='checking'?'unknown':b.status,checked:b.checked||0}; } }
+function persist(){ if(EXT) lsSet(STATUS_KEY,statusCache); else lsSet(KEY,state.items); }
+
+async function loadExt(){
+  const tree=await chrome.bookmarks.getTree(); const out=[];
+  (function walk(n,folder){
+    if(n.url){ if(/^https?:/i.test(n.url)){ const c=statusCache[n.url]||{};
+      out.push({id:n.id,url:n.url,title:n.title||host(n.url),folder:folder||'',parentId:n.parentId,added:n.dateAdded||Date.now(),status:c.status||'unknown',checked:c.checked||0}); } return; }
+    (n.children||[]).forEach(c=>walk(c,n.title||folder));
+  })(tree[0],'');
+  // keep "checking" badges for links mid-check
+  const busy=new Set(state.items.filter(b=>b.status==='checking').map(b=>b.url));
+  out.forEach(b=>{if(busy.has(b.url)) b.status='checking'});
+  state.items=out;
+}
+async function folderId(name){
+  if(!name) return undefined;
+  const hits=await chrome.bookmarks.search({title:name}); const f=hits.find(n=>!n.url);
+  return f?f.id:(await chrome.bookmarks.create({title:name})).id;
+}
+async function addMany(list){
+  const seen=new Set(state.items.map(b=>key(b.url))); const fresh=[];
+  list.forEach(b=>{const url=norm(b.url); if(!url) return; const k=key(url); if(seen.has(k)) return; seen.add(k);
+    fresh.push({id:uid(),url,title:String(b.title||'').trim()||host(url),folder:String(b.folder||'').trim(),added:b.added||Date.now(),status:'unknown'});});
+  if(!fresh.length) return 0;
+  if(EXT){ const ids={}; for(const b of fresh){ if(!(b.folder in ids)) ids[b.folder]=await folderId(b.folder);
+      const p={title:b.title,url:b.url}; if(ids[b.folder]) p.parentId=ids[b.folder]; await chrome.bookmarks.create(p); }
+    await loadExt(); }
+  else { state.items.push(...fresh); }
+  persist(); render(); checkSome(state.items.filter(b=>b.status==='unknown'));
+  return fresh.length;
+}
+async function updateItem(b,f){
+  if(EXT){ await chrome.bookmarks.update(b.id,{title:f.title,url:f.url});
+    if(f.folder!==b.folder){ const pid=await folderId(f.folder); await chrome.bookmarks.move(b.id,pid?{parentId:pid}:{parentId:'2'}).catch(()=>{}); }
+    await loadExt(); }
+  else Object.assign(b,f);
+  persist(); render();
+}
+async function removeItems(list){
+  if(EXT){ for(const b of list){ try{await chrome.bookmarks.remove(b.id)}catch(e){} } await loadExt(); }
+  else { const s=new Set(list); state.items=state.items.filter(b=>!s.has(b)); }
+  persist(); render();
+}
+
+/* ---------- browser bookmark file parser (Chrome / Edge / Firefox / Safari export) ---------- */
+function parseBookmarkHTML(text){
+  const doc=new DOMParser().parseFromString(text,'text/html'); const out=[];
+  doc.querySelectorAll('a[href]').forEach(a=>{
+    let el=a.parentElement, names=[];
+    while(el){
+      if(el.tagName==='DL'){
+        let h=null; const p=el.previousElementSibling;
+        if(p&&p.tagName==='H3') h=p; else if(el.parentElement&&el.parentElement.tagName==='DT') h=el.parentElement.querySelector(':scope > h3');
+        if(h){const nm=h.textContent.trim(); if(nm&&names[0]!==nm) names.unshift(nm);}
+      }
+      el=el.parentElement;
+    }
+    const ad=parseInt(a.getAttribute('add_date')||'0',10);
+    out.push({url:a.getAttribute('href'),title:a.textContent,folder:names[names.length-1]||'',added:ad?ad*1000:Date.now()});
+  });
+  return out;
+}
+
+/* ---------- thumbnails ---------- */
+function thumbSrc(b,attempt){
+  const y=ytId(b.url); if(y) return 'https://i.ytimg.com/vi/'+encodeURIComponent(y)+'/hqdefault.jpg';
+  return 'https://s0.wp.com/mshots/v1/'+encodeURIComponent(b.url)+'?w=640&h=400'+(attempt?'&n='+attempt:'');
+}
+function tileHTML(b,label){return '<div class="tile"><div class="big">'+esc(letter(b.url))+'</div><div class="dom">'+esc(label||host(b.url))+'</div></div>'}
+function wireThumb(card,b){
+  const box=card.querySelector('.thumb');
+  const fav=card.querySelector('.ava img'); if(fav){ const bad=()=>{if(fav.parentNode) fav.parentNode.textContent=letter(b.url)}; fav.onerror=bad; if(fav.complete&&!fav.naturalWidth) bad(); }
+  if(state.remote===false){box.insertAdjacentHTML('afterbegin',tileHTML(b));return}
+  const img=new Image(); img.alt=''; img.loading='lazy'; img.referrerPolicy='no-referrer'; let tries=0; const yt=!!ytId(b.url);
+  const placeholder=()=>!yt&&img.naturalWidth===400&&img.naturalHeight===300;
+  img.onload=()=>{
+    // the screenshot service sends a 400x300 "still taking the picture" image first; wait and ask again
+    if(placeholder()&&tries<6){tries++; setTimeout(()=>{img.src=thumbSrc(b,tries)},4000+tries*1500); return}
+    if(placeholder()){img.remove(); box.insertAdjacentHTML('afterbegin',tileHTML(b,'preview not ready yet'));}
+  };
+  img.onerror=()=>{img.remove(); if(!box.querySelector('.tile')) box.insertAdjacentHTML('afterbegin',tileHTML(b,'no preview'));};
+  img.src=thumbSrc(b,0); box.prepend(img);
+}
+
+/* ---------- link checking ---------- */
+async function ping(url){
+  if(!EXT&&location.protocol==='https:'&&url.startsWith('http://')) url='https://'+url.slice(7);
+  const c=new AbortController(); const t=setTimeout(()=>c.abort(),15000);
+  try{
+    if(EXT){ // the extension can read the real answer: 404 / 410 / server errors count as broken
+      const r=await fetch(url,{redirect:'follow',credentials:'omit',cache:'no-store',signal:c.signal}); c.abort();
+      return !(r.status===404||r.status===410||r.status>=500);
+    }
+    await fetch(url,{mode:'no-cors',cache:'no-store',signal:c.signal,redirect:'follow',credentials:'omit'}); return true;
+  }catch(e){return false} finally{clearTimeout(t)}
+}
+let checking=0;
+async function checkSome(list){
+  if(state.remote===false||!list.length) return;
+  list.forEach(b=>b.status='checking'); render();
+  const q=[...list]; checking++;
+  const run=async()=>{while(q.length){const b=q.shift();
+    let ok=await ping(b.url); if(!ok){await new Promise(r=>setTimeout(r,1500)); ok=await ping(b.url);} // second chance before calling it broken
+    const cur=state.items.find(x=>x.url===b.url)||b; cur.status=ok?'live':'broken'; cur.checked=Date.now(); remember(cur); updateCard(cur);}};
+  await Promise.all(Array.from({length:6},run)); checking--; persist(); render();
+}
+
+/* ---------- render ---------- */
+function view(){
+  let v=state.items.slice();
+  if(state.folder!=='All') v=v.filter(b=>(b.folder||'Unsorted')===state.folder);
+  if(state.filter!=='all') v=v.filter(b=>state.filter==='unknown'?(b.status==='unknown'||b.status==='checking'):b.status===state.filter);
+  if(state.q){const w=state.q.toLowerCase().split(/\s+/).filter(Boolean); v=v.filter(b=>{const s=(b.title+' '+b.url+' '+b.folder).toLowerCase(); return w.every(x=>s.includes(x))});}
+  const by={new:(a,b)=>b.added-a.added,old:(a,b)=>a.added-b.added,az:(a,b)=>a.title.localeCompare(b.title),site:(a,b)=>host(a.url).localeCompare(host(b.url)),
+    broken:(a,b)=>(b.status==='broken')-(a.status==='broken')||b.added-a.added};
+  return v.sort(by[state.sort]);
+}
+const BADGE={live:'LIVE',broken:'BROKEN',checking:'CHECKING…',unknown:'NOT CHECKED'};
+function cardHTML(b){
+  const h=host(b.url);
+  return '<article class="card '+(b.status==='broken'?'broken':'')+'" data-id="'+esc(b.id)+'">'+
+   '<a class="thumb" href="'+esc(b.url)+'" target="_blank" rel="noopener noreferrer" title="'+esc(b.url)+'"><span class="badge '+b.status+'">'+(state.remote===false?'PREVIEW MODE':BADGE[b.status])+'</span></a>'+
+   '<div class="acts"><button data-act="check" title="Check this link">↻</button><button data-act="edit" title="Edit">✎</button><button data-act="del" title="Delete">✕</button></div>'+
+   '<div class="meta"><div class="ava">'+(state.remote===false?esc(letter(b.url)):'<img alt="" referrerpolicy="no-referrer" src="https://www.google.com/s2/favicons?domain='+encodeURIComponent(h)+'&sz=64">')+'</div>'+
+   '<div class="info"><a class="title" href="'+esc(b.url)+'" target="_blank" rel="noopener noreferrer">'+esc(b.title)+'</a>'+
+   '<div class="sub">'+esc(h)+(b.folder?' · '+esc(b.folder):'')+' · '+ago(b.added)+'</div></div></div></article>';
+}
+function updateCard(b){
+  const c=[...document.querySelectorAll('.card')].find(x=>x.dataset.id===String(b.id)); if(!c) return;
+  c.classList.toggle('broken',b.status==='broken'); const bd=c.querySelector('.badge'); bd.className='badge '+b.status; bd.textContent=BADGE[b.status]; hud();
+}
+function hud(){
+  const all=state.items, live=all.filter(b=>b.status==='live').length, broken=all.filter(b=>b.status==='broken').length, checked=live+broken;
+  const pct=checked?Math.round(live/checked*100):0;
+  $('#hud').innerHTML='<div class="stat">LINKS <i>'+all.length+'</i></div><div class="stat good">LIVE <i>'+live+'</i></div><div class="stat bad">BROKEN <i>'+broken+'</i></div>'+
+   '<div class="hpbar"><span>HEALTH</span><div class="track"><div class="fill" style="width:'+(checked?pct:100)+'%"></div></div><span>'+(checked?pct+'%':'—')+'</span></div>';
+}
+function chips(){
+  const counts={}; state.items.forEach(b=>{const f=b.folder||'Unsorted'; counts[f]=(counts[f]||0)+1});
+  const names=['All',...Object.keys(counts).sort((a,b)=>a.localeCompare(b))];
+  if(!names.includes(state.folder)) state.folder='All';
+  $('#chips').innerHTML=names.map(n=>'<button class="chip '+(n===state.folder?'on':'')+'" data-folder="'+esc(n)+'">'+esc(n)+' ('+(n==='All'?state.items.length:counts[n])+')</button>').join('');
+}
+function render(){
+  hud(); chips();
+  document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('primary',b.dataset.filter===state.filter));
+  const v=view(), g=$('#grid'), e=$('#empty');
+  g.innerHTML=v.map(cardHTML).join('');
+  g.querySelectorAll('.card').forEach(c=>wireThumb(c,state.items.find(b=>String(b.id)===c.dataset.id)));
+  if(!state.items.length){e.classList.remove('hidden');e.innerHTML='<h2>NO BOOKMARKS YET</h2><p>'+(EXT?'Bookmark a page with the ☆ star in your address bar, or paste some links.':'Bring in your bookmarks from Chrome, Edge or Firefox, or paste some links.')+'</p><button class="btn primary" id="emptyAdd">+ Add bookmarks</button>'}
+  else if(!v.length){e.classList.remove('hidden');e.innerHTML='<h2>NOTHING FOUND</h2><p>Try a different search or filter.</p>'}
+  else e.classList.add('hidden');
+}
+
+/* ---------- modals ---------- */
+const open=id=>$(id).classList.add('open'), shut=id=>$(id).classList.remove('open');
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m||e.target.hasAttribute('data-close')) m.classList.remove('open')}));
+function ask(title,text,yes){$('#askTitle').textContent=title;$('#askText').textContent=text;open('#askModal');$('#askYes').onclick=()=>{shut('#askModal');yes()}}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') document.querySelectorAll('.modal.open').forEach(m=>m.classList.remove('open'));
+  if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){e.preventDefault();$('#q').focus()}
+});
+
+function showTab(name){
+  document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('primary',x.dataset.tab===name));
+  document.querySelectorAll('[data-pane]').forEach(p=>p.classList.toggle('hidden',p.dataset.pane!==name));
+}
+$('#addBtn').onclick=()=>open('#addModal');
+$('#empty').addEventListener('click',e=>{if(e.target.id==='emptyAdd') open('#addModal')});
+document.querySelectorAll('[data-tab]').forEach(t=>t.onclick=()=>showTab(t.dataset.tab));
+const drop=$('#drop'), bmFile=$('#bmFile');
+drop.onclick=e=>{if(e.target!==bmFile) bmFile.click()};
+drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')}; drop.ondragleave=()=>drop.classList.remove('over');
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over'); if(e.dataTransfer.files[0]) readBm(e.dataTransfer.files[0])};
+bmFile.onchange=()=>{if(bmFile.files[0]) readBm(bmFile.files[0]); bmFile.value=''};
+async function readBm(f){const list=parseBookmarkHTML(await f.text()); shut('#addModal'); toast('Adding…'); const n=await addMany(list); toast(n?'Added '+n+' bookmarks':(list.length?'All of those were already here':'No links found in that file'))}
+$('#pasteGo').onclick=async()=>{
+  const folder=$('#pasteFolder').value; const list=$('#pasteBox').value.split(/\n+/).map(l=>l.trim()).filter(Boolean).map(l=>{
+    const p=l.split('|'); return p.length>1?{title:p.slice(0,-1).join('|'),url:p[p.length-1],folder}:{url:l,folder}});
+  shut('#addModal'); const n=await addMany(list); $('#pasteBox').value=''; toast(n?'Added '+n+' links':'No new links to add');
+};
+$('#oneGo').onclick=async()=>{
+  if(!norm($('#oneUrl').value)){toast("That link doesn't look right");return}
+  shut('#addModal'); const n=await addMany([{url:$('#oneUrl').value,title:$('#oneTitle').value,folder:$('#oneFolder').value}]);
+  ['#oneUrl','#oneTitle'].forEach(s=>$(s).value=''); toast(n?'Bookmark added':'You already have that one');
+};
+
+/* ---------- card actions ---------- */
+let editing=null;
+const delMsg=EXT?'This also removes it from your browser bookmarks.':'It will be removed from Link Arcade.';
+$('#grid').addEventListener('click',e=>{
+  const btn=e.target.closest('[data-act]'); if(!btn) return; e.preventDefault();
+  const b=state.items.find(x=>String(x.id)===btn.closest('.card').dataset.id); if(!b) return;
+  if(btn.dataset.act==='check'){ if(state.remote===false){toast('Link checks run in the extension');return} checkSome([b]); }
+  if(btn.dataset.act==='edit'){editing=b;$('#eTitle').value=b.title;$('#eUrl').value=b.url;$('#eFolder').value=b.folder;open('#editModal')}
+  if(btn.dataset.act==='del') ask('Delete "'+b.title.slice(0,60)+'"?',delMsg,()=>removeItems([b]).then(()=>toast('Deleted')));
+});
+$('#eSave').onclick=async()=>{const u=norm($('#eUrl').value); if(!u){toast("That link doesn't look right");return}
+  const b=editing, changed=u!==b.url; shut('#editModal');
+  await updateItem(b,{title:$('#eTitle').value.trim()||host(u),url:u,folder:$('#eFolder').value.trim()});
+  if(changed){const n=state.items.find(x=>x.url===u); if(n) checkSome([n]);}};
+$('#eDelete').onclick=()=>{const b=editing; shut('#editModal'); ask('Delete "'+b.title.slice(0,60)+'"?',delMsg,()=>removeItems([b]).then(()=>toast('Deleted')))};
+
+/* ---------- toolbar ---------- */
+$('#chips').addEventListener('click',e=>{const c=e.target.closest('[data-folder]'); if(c){state.folder=c.dataset.folder;render()}});
+document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;render()});
+$('#sort').onchange=e=>{state.sort=e.target.value;render()};
+$('#searchForm').onsubmit=e=>e.preventDefault();
+$('#q').oninput=e=>{state.q=e.target.value.trim();render()};
+$('#recheck').onclick=()=>{ if(state.remote===false){toast('Link checks run in the extension');return} if(checking){toast('Already checking…');return} checkSome(state.items.slice()) };
+$('#purge').onclick=()=>{const dead=state.items.filter(b=>b.status==='broken'); if(!dead.length){toast('No broken links. Nice!');return}
+  ask('Remove '+dead.length+' broken link'+(dead.length>1?'s':'')+'?',(EXT?'They will be deleted from your browser bookmarks. ':'')+'Tip: click "Save backup" first if you might want them back.',
+    ()=>removeItems(dead).then(()=>toast('Removed '+dead.length)))};
+
+/* ---------- files out ---------- */
+let dl=null;
+async function giveFile(filename,data,mime){
+  if(dl){ const blob=data instanceof Blob?data:new Blob([data],{type:mime});
+    try{await dl.save({filename,data:blob});return true}catch(e){ try{await dl.save({filename,data});return true}catch(e2){toast('Download was cancelled');return false} } }
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(data instanceof Blob?data:new Blob([data],{type:mime}));a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);return true}
+  catch(e){toast('Downloads are blocked here');return false}
+}
+$('#backup').onclick=()=>giveFile('link-arcade-backup-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(state.items.map(({title,url,folder,added})=>({title,url,folder,added})),null,1),'application/json');
+$('#restore').onclick=()=>$('#restoreFile').click();
+$('#restoreFile').onchange=async e=>{const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{const d=JSON.parse(await f.text()); const n=await addMany(Array.isArray(d)?d:[]); toast(n?'Loaded '+n+' bookmarks':'Nothing new in that backup')}catch(err){toast('That file is not a Link Arcade backup')}};
+
+/* extension download (from the claude.ai page, which hosts the extension's files) */
+const EXT_FILES=['manifest.json','background.js','gallery.html','gallery.css','gallery.js','icons/icon16.png','icons/icon48.png','icons/icon128.png'];
+function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+$('#getExt').onclick=()=>open('#extModal');
+$('#extGo').onclick=async()=>{
+  try{
+    toast('Packing the extension…');
+    if(!window.JSZip) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+    const zip=new JSZip(), dir=zip.folder('link-arcade');
+    for(const f of EXT_FILES){ const r=await fetch((f==='manifest.json'||f==='background.js'?'ext/':'')+f); if(!r.ok) throw new Error(f); dir.file(f,await r.blob()); }
+    const blob=await zip.generateAsync({type:'blob'});
+    if(await giveFile('link-arcade-extension.zip',blob,'application/zip')){ toast('Downloaded! Now unzip it and follow steps 2–5'); }
+  }catch(e){ toast("Couldn't pack it here. Grab the zip Claude sent you in the chat instead."); }
+};
+
+/* ---------- theme ---------- */
+function setTheme(t){document.body.dataset.theme=t;$('#theme').value=t;$('#tagline').textContent=TAGS[t];try{localStorage.setItem(THEME_KEY,t)}catch(e){}}
+$('#theme').onchange=e=>setTheme(e.target.value);
+let savedTheme=null; try{savedTheme=localStorage.getItem(THEME_KEY)}catch(e){}
+setTheme(TAGS[savedTheme]?savedTheme:'arcade');
+
+/* ---------- start ---------- */
+const STALE=3*864e5;
+const needsCheck=()=>state.items.filter(b=>b.status==='unknown'||!b.checked||Date.now()-b.checked>STALE);
+if(EXT){
+  document.querySelectorAll('.ext-only').forEach(n=>n.classList.remove('hidden'));
+  $('.file-tab').classList.add('hidden'); $('[data-pane="file"]').classList.add('hidden'); showTab('paste');
+  let t=null; const refresh=()=>{clearTimeout(t);t=setTimeout(async()=>{await loadExt();render();checkSome(state.items.filter(b=>b.status==='unknown'))},400)};
+  ['onCreated','onRemoved','onChanged','onMoved'].forEach(ev=>chrome.bookmarks[ev]&&chrome.bookmarks[ev].addListener(refresh));
+  loadExt().then(()=>{render();checkSome(needsCheck())});
+} else {
+  const d=lsGet(KEY,[]); state.items=Array.isArray(d)?d.map(b=>b.status==='checking'?{...b,status:'unknown'}:b):[];
+  render();
+  // can this page load pictures from other sites? (claude.ai blocks them; a normal page can)
+  const im=new Image(); let done=false;
+  const finish=ok=>{if(done) return; done=true; state.remote=ok; $('#blockedBanner').classList.toggle('hidden',ok); render(); if(ok) checkSome(needsCheck());};
+  im.onload=()=>finish(true); im.onerror=()=>finish(false); setTimeout(()=>finish(false),6000);
+  im.src='https://www.google.com/s2/favicons?domain=wikipedia.org&sz=32&t='+Date.now();
+  try{ if(window.claude&&typeof window.claude.use==='function') window.claude.use('downloads').then(d=>{dl=d}).catch(()=>{}) }catch(e){}
+}
+})();
+</script>
+</body>
+</html>
