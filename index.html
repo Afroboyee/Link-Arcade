@@ -181,6 +181,37 @@ body{padding-top:env(safe-area-inset-top)}
 .tile.loading .dom::after{content:"";display:inline-block;width:10px;height:10px;margin-left:6px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-1px}
 @keyframes pulse{50%{opacity:.35;transform:scale(.9)}}
 @keyframes spin{to{transform:rotate(360deg)}}
+.viewtabs{display:flex;gap:8px;margin:6px 0 2px}
+.viewtabs .btn{font-family:var(--head-font);font-size:var(--hud-size)}
+body[data-theme=terminal] .viewtabs .btn,body[data-theme=regular] .viewtabs .btn{font-size:16px}
+.desc{font-size:13px;opacity:.65;margin-top:4px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.posted{color:var(--accent2);font-weight:600}
+body[data-theme=regular] .posted{color:#b26a00}
+.bad{color:var(--bad)}
+.pager{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;margin:6px 0 18px}
+.pager:empty{display:none}
+.pager .btn[disabled]{opacity:.35;cursor:default;box-shadow:none}
+.pager .per{display:flex;align-items:center;gap:6px;font-size:14px}
+.sitebar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px;margin-bottom:14px;background:var(--panel);border:var(--line);border-radius:var(--radius)}
+.sitebar b{font-family:var(--head-font);font-size:calc(var(--h3-size) + 2px);color:var(--accent);text-shadow:var(--glow)}
+.sitebar span{opacity:.7}
+.sitebar a.btn{margin-left:auto}
+.card.site{cursor:pointer}
+.sitefav{width:84px;height:84px;display:flex;align-items:center;justify-content:center;background:var(--panel);border:var(--line);border-radius:var(--ava-radius);font-family:var(--head-font);font-size:40px;color:var(--accent)}
+.sitefav img{width:56px;height:56px}
+.collage{position:absolute;inset:0;display:grid;gap:2px;background:var(--thumb-bg)}
+.collage img{width:100%;height:100%;object-fit:cover;object-position:top;filter:var(--thumb-filter)}
+.collage.n2{grid-template-columns:1fr 1fr}.collage.n3{grid-template-columns:2fr 1fr;grid-template-rows:1fr 1fr}.collage.n3 img:first-child{grid-row:span 2}
+.collage.n4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+.card.site:hover .collage img{filter:none}
+.infobox{width:min(720px,100%)}
+.ipic{margin-bottom:14px}
+.infobox h3{font-size:calc(var(--h3-size) + 2px);line-height:1.4}
+.idesc{opacity:.8;line-height:1.5;margin:0 0 12px}
+.irow{display:flex;gap:12px;padding:7px 0;border-top:var(--line);font-size:14px}
+.irow span{flex:0 0 70px;opacity:.65}
+.irow b{font-weight:600}
+.irow.link a{word-break:break-all;color:var(--accent)}
 </style>
 </head>
 <body data-theme="arcade">
@@ -203,6 +234,7 @@ body{padding-top:env(safe-area-inset-top)}
   <button class="btn primary" id="getExt">Get the extension</button>
  </div>
  <div class="hud" id="hud"></div>
+ <div class="viewtabs"><button class="btn" data-view="links">▦ All links</button><button class="btn" data-view="sites">🌐 Websites</button></div>
  <div class="chips" id="chips"></div>
  <div class="tools">
   <button class="btn" data-filter="all">All</button>
@@ -218,11 +250,15 @@ body{padding-top:env(safe-area-inset-top)}
  </div>
  <div class="sortbar"><span>SORT</span>
   <button class="btn" data-sort="name">Name A→Z</button>
-  <button class="btn" data-sort="date">Newest first</button>
+  <button class="btn" data-sort="date">Newest saved</button>
+  <button class="btn" data-sort="posted">Newest posted</button>
   <button class="btn" data-sort="site">Website A→Z</button>
   <button class="btn" data-sort="status">Broken first</button>
  </div>
+ <div class="sitebar hidden" id="sitebar"></div>
+ <div class="pager" id="pagerTop"></div>
  <div class="grid" id="grid"></div>
+ <div class="pager" id="pagerBottom"></div>
  <div class="empty hidden" id="empty"></div>
 </div>
 
@@ -279,6 +315,11 @@ body{padding-top:env(safe-area-inset-top)}
  <div class="row"><button class="btn" data-close>Close</button><button class="btn primary" id="extGo">Download extension</button></div>
 </div></div>
 
+<div class="modal" id="infoModal"><div class="box infobox">
+ <div id="infoBody"></div>
+ <div class="row"><button class="btn" id="infoRefresh">↻ Refresh info</button><button class="btn" id="infoEdit">✎ Edit</button><span style="flex:1"></span><button class="btn" data-close>Close</button><a class="btn primary" id="infoOpen" target="_blank" rel="noopener noreferrer">Open link ↗</a></div>
+</div></div>
+
 <div class="toast" id="toast"></div>
 <script>
 /* Link Arcade — bookmark picture wall.
@@ -292,7 +333,7 @@ const EXT = typeof chrome!=='undefined' && !!(chrome.bookmarks && chrome.bookmar
 const KEY='linkArcade.v1', STATUS_KEY='linkArcade.status', THEME_KEY='linkArcade.theme';
 const TAGS={arcade:'insert coin · all your bookmarks',crypt:'the archive of forgotten links',terminal:'$ ls ~/bookmarks --visual',regular:'All your bookmarks in one place'};
 const $=s=>document.querySelector(s);
-const state={items:[],folder:'All',filter:'all',sort:{key:'date',dir:-1},q:'',remote:EXT?true:null};
+const state={items:[],folder:'All',filter:'all',sort:{key:'date',dir:-1},q:'',remote:EXT?true:null,page:1,per:20,view:'links',site:null};
 
 /* ---------- helpers ---------- */
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -316,7 +357,8 @@ function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 
 /* ---------- storage: browser bookmarks (extension) or local list ---------- */
 let statusCache=lsGet(STATUS_KEY,{});
-{const ss=lsGet('linkArcade.sort',null); if(ss&&['name','date','site','status'].includes(ss.key)&&(ss.dir===1||ss.dir===-1)) state.sort=ss;}
+{const pp=lsGet('linkArcade.per',20); if([20,50,100].includes(pp)) state.per=pp; if(lsGet('linkArcade.view','links')==='sites') state.view='sites';}
+{const ss=lsGet('linkArcade.sort',null); if(ss&&['name','date','posted','site','status'].includes(ss.key)&&(ss.dir===1||ss.dir===-1)) state.sort=ss;}
 function remember(b){ if(EXT){ statusCache[b.url]={status:b.status==='checking'?'unknown':b.status,checked:b.checked||0}; } }
 function persist(){ if(EXT) lsSet(STATUS_KEY,statusCache); else lsSet(KEY,state.items); }
 
@@ -391,7 +433,6 @@ const savePics=()=>lsSet(PICS_KEY,pics);
 const thumbs=new Map();                     // bookmark url -> {state:'idle'|'loading'|'done'|'fail', img, box}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const mshots=(u,n)=>'https://s0.wp.com/mshots/v1/'+encodeURIComponent(u)+'?w=640&h=400'+(n?'&n='+n:'');
-const microlink=u=>'https://api.microlink.io/?url='+encodeURIComponent(u)+'&screenshot=true&meta=false&embed=screenshot.url';
 let slots=8; const waiters=[];
 async function slot(fn){ while(slots<=0) await new Promise(r=>waiters.push(r)); slots--; try{return await fn()}finally{slots++; const w=waiters.shift(); if(w) w()} }
 function tryLoad(src,timeout){
@@ -408,43 +449,112 @@ function tryLoad(src,timeout){
 }
 function tileHTML(b,label,cls){return '<div class="tile '+(cls||'')+'"><div class="big">'+esc(letter(b.url))+'</div><div class="dom">'+esc(label||host(b.url))+'</div></div>'}
 function paint(e,b){
-  const box=e.box; if(!box) return;
+  const box=e.box; if(!box||!box.isConnected) return;
   box.querySelectorAll('img,.tile').forEach(n=>n.remove());
   if(e.state==='done') box.prepend(e.img);
   else box.insertAdjacentHTML('afterbegin',tileHTML(b,e.state==='fail'?'no picture · tap ✎ to add one':(e.state==='loading'?'taking picture…':''),e.state==='loading'?'loading':''));
 }
 async function fetchPic(b){
-  const e=thumbs.get(b.url); if(!e||e.state==='loading') return;
+  const e=thumbs.get(b.url); if(!e||e.state==='loading'||e.state==='done') return;
+  const g=e.gen=(e.gen||0)+1; const stale=()=>e.gen!==g;
   e.state='loading'; paint(e,b);
-  const finish=(img,src)=>{ e.state='done'; e.img=img; if(!(pics[b.url]&&pics[b.url].custom)){pics[b.url]={src}; savePics();} paint(e,b); };
+  const finish=(img,src)=>{ if(stale()) return; e.state='done'; e.img=img; if(!(pics[b.url]&&pics[b.url].custom)){pics[b.url]={src}; savePics();} paint(e,b); };
   const saved=pics[b.url];
-  if(saved){ const {r,img}=await tryLoad(saved.src); if(r==='ok') return finish(img,saved.src); if(saved.custom){e.state='fail';return paint(e,b)} delete pics[b.url]; }
+  if(saved){ const {r,img}=await tryLoad(saved.src); if(stale()) return; if(r==='ok') return finish(img,saved.src); if(saved.custom){e.state='fail';return paint(e,b)} delete pics[b.url]; }
   const y=ytId(b.url);
-  if(y){ for(const q of ['maxresdefault','hqdefault']){ const s='https://i.ytimg.com/vi/'+encodeURIComponent(y)+'/'+q+'.jpg'; const {r,img}=await tryLoad(s); if(r==='ok') return finish(img,s); } }
+  if(y){ for(const q of ['maxresdefault','hqdefault']){ const s='https://i.ytimg.com/vi/'+encodeURIComponent(y)+'/'+q+'.jpg'; const {r,img}=await tryLoad(s); if(stale()) return; if(r==='ok') return finish(img,s); } }
+  // the site's own preview picture (the one it shows when shared), if we have its info already
+  const m=meta[b.url]; if(m&&m.img){ const {r,img}=await tryLoad(m.img); if(stale()) return; if(r==='ok') return finish(img,m.img); }
   // WordPress screenshots: first request starts the camera; ask again with growing waits (about 2 minutes total)
   const waits=[3000,5000,8000,10000,15000,20000,25000,30000];
   for(let i=0;i<=waits.length;i++){
-    const s=mshots(b.url,i); const {r,img}=await tryLoad(s);
+    const s=mshots(b.url,i); const {r,img}=await tryLoad(s); if(stale()) return;
     if(r==='ok') return finish(img,s);
     if(r==='error'||i===waits.length) break;
-    await sleep(waits[i]);
+    await sleep(waits[i]); if(stale()) return;
   }
-  const m=microlink(b.url); const {r,img}=await tryLoad(m,30000); if(r==='ok') return finish(img,m);
   e.state='fail'; paint(e,b);
 }
 const io=('IntersectionObserver' in window)?new IntersectionObserver(ents=>ents.forEach(en=>{
   if(!en.isIntersecting) return; io.unobserve(en.target);
-  const b=state.items.find(x=>x.url===en.target.dataset.url); if(b) fetchPic(b);
-}),{rootMargin:'400px'}):null;
+  const b=state.items.find(x=>x.url===en.target.dataset.url); if(b){ fetchPic(b); wantMeta(b); }
+}),{rootMargin:'300px'}):null;
+function wireFav(card,u){ const fav=card.querySelector('.ava img'); if(fav){ const bad=()=>{if(fav.parentNode) fav.parentNode.textContent=letter(u)}; fav.onerror=bad; if(fav.complete&&!fav.naturalWidth) bad(); } }
 function wireThumb(card,b){
-  const box=card.querySelector('.thumb');
-  const fav=card.querySelector('.ava img'); if(fav){ const bad=()=>{if(fav.parentNode) fav.parentNode.textContent=letter(b.url)}; fav.onerror=bad; if(fav.complete&&!fav.naturalWidth) bad(); }
+  const box=card.querySelector('.thumb'); wireFav(card,b.url);
   if(state.remote===false){box.insertAdjacentHTML('afterbegin',tileHTML(b));return}
   let e=thumbs.get(b.url); if(!e){e={state:'idle'}; thumbs.set(b.url,e);}
   e.box=box; box.dataset.url=b.url; paint(e,b);
-  if(e.state==='idle'){ if(io) io.observe(box); else fetchPic(b); }
+  if(io) io.observe(box); else { fetchPic(b); wantMeta(b); }
 }
-function retryPic(b){ delete pics[b.url]; savePics(); const e=thumbs.get(b.url); if(e){e.state='idle'; e.img=null;} render(); const e2=thumbs.get(b.url); if(e2&&e2.state==='idle') fetchPic(b); }
+function retryPic(b){ delete pics[b.url]; savePics(); const e=thumbs.get(b.url); if(e){e.state='idle'; e.img=null; e.gen=(e.gen||0)+1;} render(); }
+
+/* ---------- link info: description, posted date, preview picture ----------
+   Extension: reads each page itself (free, no limit).
+   Web page: asks the free Microlink service (about 50 links a day), then remembers the answer for good. */
+const META_KEY='linkArcade.meta', PAUSE_KEY='linkArcade.metaPause';
+let meta=lsGet(META_KEY,{});               // url -> {t,d,img,pub,by,at}
+let metaT=null; const saveMeta=()=>{clearTimeout(metaT); metaT=setTimeout(()=>lsSet(META_KEY,meta),600)};
+let metaPausedUntil=lsGet(PAUSE_KEY,0);
+const metaQ=[], metaBusy=new Set(); let metaRunning=false;
+function parseDate(s){ if(!s) return 0; const t=Date.parse(String(s).trim()); return (t>Date.UTC(1991,0,1)&&t<Date.now()+864e5)?t:0; }
+function wantMeta(b){
+  if(state.remote===false||meta[b.url]||metaBusy.has(b.url)) return;
+  if(!EXT&&Date.now()<metaPausedUntil) return;
+  metaBusy.add(b.url); metaQ.push(b.url); runMeta();
+}
+async function metaMicrolink(url){
+  const c=new AbortController(); const t=setTimeout(()=>c.abort(),25000);
+  try{
+    const r=await fetch('https://api.microlink.io/?url='+encodeURIComponent(url),{signal:c.signal});
+    if(r.status===429) throw {limit:1};
+    const j=await r.json().catch(()=>({}));
+    if(j.status!=='success'){ if(/rate|limit|quota/i.test((j.code||'')+(j.message||''))) throw {limit:1}; return {at:Date.now()}; }
+    const d=j.data||{}; let pub=parseDate(d.date); if(pub&&Date.now()-pub<10*60e3) pub=0; // a date of "right now" is just when it was read
+    return {t:d.title||'',d:d.description||'',img:(d.image&&d.image.url)||'',pub,by:d.author||d.publisher||'',at:Date.now()};
+  } finally{clearTimeout(t)}
+}
+async function metaDirect(url){
+  const c=new AbortController(); const t=setTimeout(()=>c.abort(),20000);
+  try{
+    const r=await fetch(url,{credentials:'omit',redirect:'follow',signal:c.signal});
+    const ct=r.headers.get('content-type')||''; if(!/html/i.test(ct)) return {at:Date.now()};
+    const html=(await r.text()).slice(0,2e6); const doc=new DOMParser().parseFromString(html,'text/html');
+    const q=s=>{const n=doc.querySelector(s); return n?(n.getAttribute('content')||n.getAttribute('datetime')||n.getAttribute('href')||n.textContent||'').trim():''};
+    const rx=re=>{const m=html.match(re); return m?m[1]:''};
+    let ld={}; doc.querySelectorAll('script[type="application/ld+json"]').forEach(s=>{try{const j=JSON.parse(s.textContent); [].concat(j['@graph']||j).forEach(o=>{ if(o&&!ld.date) ld.date=o.uploadDate||o.datePublished; if(o&&!ld.img&&o.thumbnailUrl) ld.img=[].concat(o.thumbnailUrl)[0]; })}catch(e){}});
+    let img=q('meta[property="og:image"]')||q('meta[name="twitter:image"]')||ld.img||''; try{ if(img) img=new URL(img,r.url||url).href }catch(e){img=''}
+    const pub=parseDate(q('meta[property="article:published_time"]')||q('meta[itemprop="uploadDate"]')||q('meta[itemprop="datePublished"]')||ld.date||
+      rx(/"(?:uploadDate|publishDate|datePublished)"\s*:\s*"([^"]+)"/)||q('meta[name="date"]')||q('time[datetime]'));
+    return {t:q('meta[property="og:title"]')||q('meta[name="twitter:title"]')||(doc.title||'').trim(),
+      d:q('meta[property="og:description"]')||q('meta[name="description"]')||q('meta[name="twitter:description"]'),
+      img, pub, by:rx(/"ownerChannelName"\s*:\s*"([^"]+)"/)||q('meta[name="author"]')||q('meta[property="og:site_name"]'), at:Date.now()};
+  } finally{clearTimeout(t)}
+}
+async function runMeta(){
+  if(metaRunning) return; metaRunning=true;
+  while(metaQ.length){
+    const url=metaQ.shift(); let m;
+    try{ m=EXT?await metaDirect(url):await metaMicrolink(url); }
+    catch(e){
+      if(e&&e.limit){ metaPausedUntil=Date.now()+6*36e5; lsSet(PAUSE_KEY,metaPausedUntil); metaQ.length=0; metaBusy.clear();
+        toast('Free link-info limit reached for today. More info fills in later.'); break; }
+      m={at:Date.now()};
+    }
+    metaBusy.delete(url); meta[url]=m; saveMeta(); onMeta(url);
+    if(!EXT) await sleep(1500);
+  }
+  metaRunning=false;
+}
+function onMeta(url){
+  const b=state.items.find(x=>x.url===url); if(!b) return;
+  const c=[...document.querySelectorAll('.card')].find(x=>x.dataset.url===url);
+  if(c){ c.querySelector('.info').innerHTML=infoHTML(b); }
+  const e=thumbs.get(url), m=meta[url];
+  if(e&&m&&m.img&&e.state!=='done'){ e.state='idle'; e.gen=(e.gen||0)+1; fetchPic(b); }
+  if(infoOpen===url) showInfo(b);
+}
+function refreshInfo(b){ delete meta[b.url]; saveMeta(); if(!EXT){metaPausedUntil=0; lsSet(PAUSE_KEY,0);} wantMeta(b); toast('Getting fresh info…'); }
 
 /* ---------- link checking ---------- */
 async function ping(url){
@@ -471,35 +581,58 @@ async function checkSome(list){
 }
 
 /* ---------- render ---------- */
+const dispTitle=b=>{const m=meta[b.url]; return (b.title===host(b.url)&&m&&m.t)?m.t:b.title};
 function view(){
   let v=state.items.slice();
   if(state.folder!=='All') v=v.filter(b=>(b.folder||'Unsorted')===state.folder);
   if(state.filter!=='all') v=v.filter(b=>state.filter==='unknown'?(b.status==='unknown'||b.status==='checking'):b.status===state.filter);
-  if(state.q){const w=state.q.toLowerCase().split(/\s+/).filter(Boolean); v=v.filter(b=>{const s=(b.title+' '+b.url+' '+b.folder).toLowerCase(); return w.every(x=>s.includes(x))});}
-  const name=(a,b)=>a.title.localeCompare(b.title,undefined,{sensitivity:'base',numeric:true});
-  const rank={broken:0,checking:1,unknown:2,live:3};
+  if(state.q){const w=state.q.toLowerCase().split(/\s+/).filter(Boolean); v=v.filter(b=>{const m=meta[b.url]||{}; const s=(b.title+' '+b.url+' '+b.folder+' '+(m.t||'')+' '+(m.d||'')+' '+(m.by||'')).toLowerCase(); return w.every(x=>s.includes(x))});}
+  const name=(a,b)=>dispTitle(a).localeCompare(dispTitle(b),undefined,{sensitivity:'base',numeric:true});
+  const rank={broken:0,checking:1,unknown:2,live:3}, pub=b=>(meta[b.url]&&meta[b.url].pub)||0;
   const by={name, date:(a,b)=>a.added-b.added, site:(a,b)=>host(a.url).localeCompare(host(b.url))||name(a,b),
-    status:(a,b)=>rank[a.status]-rank[b.status]||name(a,b)};
-  const d=state.sort.dir;
-  return v.sort((a,b)=>d*by[state.sort.key](a,b));
+    status:(a,b)=>rank[a.status]-rank[b.status]||name(a,b), posted:(a,b)=>pub(a)-pub(b)};
+  const d=state.sort.dir, k=state.sort.key;
+  return v.sort((a,b)=>{ if(k==='posted'){ const pa=pub(a),pb=pub(b); if(!pa!==!pb) return pa?-1:1; } return d*by[k](a,b) });
 }
-const SORTS={name:['Name A→Z','Name Z→A'],date:['Oldest first','Newest first'],site:['Website A→Z','Website Z→A'],status:['Broken first','Working first']};
+const SORTS={name:['Name A→Z','Name Z→A'],date:['Oldest saved','Newest saved'],posted:['Oldest posted','Newest posted'],site:['Website A→Z','Website Z→A'],status:['Broken first','Working first']};
 function sortButtons(){
   document.querySelectorAll('[data-sort]').forEach(btn=>{ const k=btn.dataset.sort, on=state.sort.key===k;
-    btn.classList.toggle('primary',on); btn.textContent=on?SORTS[k][state.sort.dir===1?0:1]:SORTS[k][k==='date'?1:0]; });
+    btn.classList.toggle('primary',on); btn.textContent=on?SORTS[k][state.sort.dir===1?0:1]:SORTS[k][(k==='date'||k==='posted')?1:0]; });
 }
 const BADGE={live:'LIVE',broken:'BROKEN',checking:'CHECKING…',unknown:'NOT CHECKED'};
+const favImg=(h,sz)=>state.remote===false?esc((h[0]||'?').toUpperCase()):'<img alt="" referrerpolicy="no-referrer" src="https://www.google.com/s2/favicons?domain='+encodeURIComponent(h)+'&sz='+(sz||64)+'">';
+function infoHTML(b){
+  const h=host(b.url), m=meta[b.url]||{};
+  const when=m.pub?'<b class="posted">Posted '+ago(m.pub)+'</b>':'Saved '+ago(b.added);
+  return '<a class="title" href="'+esc(b.url)+'" target="_blank" rel="noopener noreferrer">'+esc(dispTitle(b))+'</a>'+
+   '<div class="sub">'+esc(m.by&&m.by.length<40?m.by:h)+' · '+when+(b.folder?' · '+esc(b.folder):'')+'</div>'+
+   (m.d?'<div class="desc">'+esc(m.d)+'</div>':'');
+}
 function cardHTML(b){
   const h=host(b.url);
-  return '<article class="card '+(b.status==='broken'?'broken':'')+'" data-id="'+esc(b.id)+'">'+
+  return '<article class="card '+(b.status==='broken'?'broken':'')+'" data-id="'+esc(b.id)+'" data-url="'+esc(b.url)+'">'+
    '<a class="thumb" href="'+esc(b.url)+'" target="_blank" rel="noopener noreferrer" title="'+esc(b.url)+'"><span class="badge '+b.status+'">'+(state.remote===false?'PREVIEW MODE':BADGE[b.status])+'</span></a>'+
-   '<div class="acts"><button data-act="pic" title="Get the picture again">🖼</button><button data-act="check" title="Check this link">↻</button><button data-act="edit" title="Edit">✎</button><button data-act="del" title="Delete">✕</button></div>'+
-   '<div class="meta"><div class="ava">'+(state.remote===false?esc(letter(b.url)):'<img alt="" referrerpolicy="no-referrer" src="https://www.google.com/s2/favicons?domain='+encodeURIComponent(h)+'&sz=64">')+'</div>'+
-   '<div class="info"><a class="title" href="'+esc(b.url)+'" target="_blank" rel="noopener noreferrer">'+esc(b.title)+'</a>'+
-   '<div class="sub">'+esc(h)+(b.folder?' · '+esc(b.folder):'')+' · '+ago(b.added)+'</div></div></div></article>';
+   '<div class="acts"><button data-act="info" title="More info">ⓘ</button><button data-act="pic" title="Get the picture again">🖼</button><button data-act="check" title="Check this link">↻</button><button data-act="edit" title="Edit">✎</button><button data-act="del" title="Delete">✕</button></div>'+
+   '<div class="meta"><div class="ava">'+favImg(h)+'</div><div class="info">'+infoHTML(b)+'</div></div></article>';
+}
+function siteGroups(v){
+  const g=new Map(); v.forEach(b=>{const h=host(b.url); if(!g.has(h)) g.set(h,[]); g.get(h).push(b)});
+  const arr=[...g].map(([h,items])=>({h,items,newest:Math.max(...items.map(b=>b.added)),broken:items.filter(b=>b.status==='broken').length}));
+  const k=state.sort.key, d=state.sort.dir;
+  const by={name:(a,b)=>a.h.localeCompare(b.h), site:(a,b)=>a.h.localeCompare(b.h), date:(a,b)=>a.newest-b.newest, posted:(a,b)=>a.newest-b.newest,
+    status:(a,b)=>b.broken-a.broken||a.h.localeCompare(b.h)};
+  return arr.sort((a,b)=>k==='status'?by.status(a,b)*d:d*by[k](a,b)||b.items.length-a.items.length);
+}
+function siteHTML(s){
+  const shots=s.items.map(b=>pics[b.url]&&pics[b.url].src).filter(Boolean).slice(0,4);
+  const cover=(state.remote!==false&&shots.length)?'<div class="collage n'+shots.length+'">'+shots.map(src=>'<img alt="" referrerpolicy="no-referrer" src="'+esc(src)+'">').join('')+'</div>'
+    :'<div class="tile"><div class="sitefav">'+favImg(s.h,128)+'</div><div class="dom">'+esc(s.h)+'</div></div>';
+  return '<article class="card site" data-site="'+esc(s.h)+'" tabindex="0"><div class="thumb">'+cover+'<span class="badge">'+s.items.length+' LINK'+(s.items.length>1?'S':'')+'</span></div>'+
+   '<div class="meta"><div class="ava">'+favImg(s.h)+'</div><div class="info"><div class="title">'+esc(s.h)+'</div>'+
+   '<div class="sub">'+s.items.length+' link'+(s.items.length>1?'s':'')+(s.broken?' · <b class="bad">'+s.broken+' broken</b>':'')+' · newest '+ago(s.newest)+'</div></div></div></article>';
 }
 function updateCard(b){
-  const c=[...document.querySelectorAll('.card')].find(x=>x.dataset.id===String(b.id)); if(!c) return;
+  const c=[...document.querySelectorAll('.card')].find(x=>x.dataset.id===String(b.id)); if(!c){hud();return}
   c.classList.toggle('broken',b.status==='broken'); const bd=c.querySelector('.badge'); bd.className='badge '+b.status; bd.textContent=BADGE[b.status]; hud();
 }
 function hud(){
@@ -514,15 +647,53 @@ function chips(){
   if(!names.includes(state.folder)) state.folder='All';
   $('#chips').innerHTML=names.map(n=>'<button class="chip '+(n===state.folder?'on':'')+'" data-folder="'+esc(n)+'">'+esc(n)+' ('+(n==='All'?state.items.length:counts[n])+')</button>').join('');
 }
+function pagerHTML(total,pages,word){
+  if(!total) return '';
+  return '<button class="btn" data-page="prev"'+(state.page<=1?' disabled':'')+'>◀ Prev</button>'+
+   '<span class="pinfo">Page <b>'+state.page+'</b> of '+pages+' · '+total+' '+word+'</span>'+
+   '<button class="btn" data-page="next"'+(state.page>=pages?' disabled':'')+'>Next ▶</button>'+
+   '<label class="per">Show <select class="btn" data-per>'+[20,50,100].map(n=>'<option'+(n===state.per?' selected':'')+'>'+n+'</option>').join('')+'</select> per page</label>';
+}
 function render(){
   hud(); chips(); sortButtons();
   document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('primary',b.dataset.filter===state.filter));
-  const v=view(), g=$('#grid'), e=$('#empty');
-  g.innerHTML=v.map(cardHTML).join('');
-  g.querySelectorAll('.card').forEach(c=>wireThumb(c,state.items.find(b=>String(b.id)===c.dataset.id)));
+  document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('primary',b.dataset.view===state.view));
+  const v=view(), g=$('#grid'), e=$('#empty'), bar=$('#sitebar');
+  let list, total, word, html;
+  if(state.view==='sites'&&state.site&&!v.some(b=>host(b.url)===state.site)) state.site=null;
+  if(state.view==='sites'&&!state.site){
+    list=siteGroups(v); word='websites';
+  } else { list=state.view==='sites'?v.filter(b=>host(b.url)===state.site):v; word='links'; }
+  total=list.length; const pages=Math.max(1,Math.ceil(total/state.per)); if(state.page>pages) state.page=pages; if(state.page<1) state.page=1;
+  const slice=list.slice((state.page-1)*state.per,state.page*state.per);
+  if(state.view==='sites'&&state.site){ bar.classList.remove('hidden');
+    bar.innerHTML='<button class="btn" id="backSites">◀ All websites</button><div class="ava">'+favImg(state.site)+'</div><b>'+esc(state.site)+'</b><span>'+total+' link'+(total===1?'':'s')+'</span>'+
+     '<a class="btn" href="https://'+esc(state.site)+'" target="_blank" rel="noopener noreferrer">Visit site ↗</a>';
+    wireFav(bar,'https://'+state.site);
+  } else bar.classList.add('hidden');
+  if(word==='websites'){ g.innerHTML=slice.map(siteHTML).join(''); g.querySelectorAll('.site').forEach(c=>{wireFav(c,'https://'+c.dataset.site); const f=c.querySelector('.sitefav img'); if(f) f.onerror=()=>{f.parentNode.textContent=letter('https://'+c.dataset.site)}; c.querySelectorAll('.collage img').forEach(i=>i.onerror=()=>i.remove());}); }
+  else { g.innerHTML=slice.map(cardHTML).join(''); g.querySelectorAll('.card').forEach(c=>wireThumb(c,state.items.find(b=>String(b.id)===c.dataset.id))); }
+  const ph=pagerHTML(total,pages,word); document.querySelectorAll('.pager').forEach(p=>p.innerHTML=ph);
   if(!state.items.length){e.classList.remove('hidden');e.innerHTML='<h2>NO BOOKMARKS YET</h2><p>'+(EXT?'Bookmark a page with the ☆ star in your address bar, or paste some links.':'Bring in your bookmarks from Chrome, Edge or Firefox, or paste some links.')+'</p><button class="btn primary" id="emptyAdd">+ Add bookmarks</button>'}
-  else if(!v.length){e.classList.remove('hidden');e.innerHTML='<h2>NOTHING FOUND</h2><p>Try a different search or filter.</p>'}
+  else if(!total){e.classList.remove('hidden');e.innerHTML='<h2>NOTHING FOUND</h2><p>Try a different search or filter.</p>'}
   else e.classList.add('hidden');
+}
+function go(changes){ Object.assign(state,changes); render(); }
+function toTop(){ try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){window.scrollTo(0,0)} }
+
+/* ---------- info panel ---------- */
+let infoOpen=null;
+function showInfo(b){
+  infoOpen=b.url; const m=meta[b.url]||{}, h=host(b.url), e=thumbs.get(b.url);
+  const pic=(e&&e.state==='done'&&e.img)?'<img alt="" referrerpolicy="no-referrer" src="'+esc(e.img.src)+'">':tileHTML(b,meta[b.url]||state.remote===false?'':'looking up info…');
+  const full=t=>new Date(t).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+  const row=(k,v)=>v?'<div class="irow"><span>'+k+'</span><b>'+v+'</b></div>':'';
+  $('#infoBody').innerHTML='<div class="thumb ipic">'+pic+'</div><h3>'+esc(dispTitle(b))+'</h3>'+(m.d?'<p class="idesc">'+esc(m.d)+'</p>':'')+
+    row('Website',esc(h))+row('By',m.by?esc(m.by):'')+row('Posted',m.pub?full(m.pub)+' ('+ago(m.pub)+')':(meta[b.url]?'not shown by this site':'checking…'))+
+    row('Saved',full(b.added)+' ('+ago(b.added)+')')+row('Folder',esc(b.folder||'Unsorted'))+row('Status',BADGE[b.status])+
+    '<div class="irow link"><span>Link</span><a href="'+esc(b.url)+'" target="_blank" rel="noopener noreferrer">'+esc(b.url)+'</a></div>';
+  $('#infoOpen').href=b.url; $('#infoRefresh').onclick=()=>refreshInfo(b); $('#infoEdit').onclick=()=>{shut('#infoModal'); infoOpen=null; openEdit(b)};
+  open('#infoModal'); if(!meta[b.url]) wantMeta(b);
 }
 
 /* ---------- modals ---------- */
@@ -561,12 +732,15 @@ $('#oneGo').onclick=async()=>{
 /* ---------- card actions ---------- */
 let editing=null;
 const delMsg=EXT?'This also removes it from your browser bookmarks.':'It will be removed from Link Arcade.';
+function openEdit(b){editing=b;$('#eTitle').value=b.title;$('#eUrl').value=b.url;$('#eFolder').value=b.folder;$('#ePic').value=(pics[b.url]&&pics[b.url].custom)?pics[b.url].src:'';open('#editModal')}
 $('#grid').addEventListener('click',e=>{
+  const site=e.target.closest('.site'); if(site){ e.preventDefault(); go({site:site.dataset.site,page:1}); toTop(); return; }
   const btn=e.target.closest('[data-act]'); if(!btn) return; e.preventDefault();
   const b=state.items.find(x=>String(x.id)===btn.closest('.card').dataset.id); if(!b) return;
   if(btn.dataset.act==='check'){ if(state.remote===false){toast('Link checks run in the extension');return} checkSome([b]); }
   if(btn.dataset.act==='pic'){ if(state.remote===false){toast('Pictures load outside claude.ai');return} retryPic(b); toast('Getting a fresh picture…'); }
-  if(btn.dataset.act==='edit'){editing=b;$('#eTitle').value=b.title;$('#eUrl').value=b.url;$('#eFolder').value=b.folder;$('#ePic').value=(pics[b.url]&&pics[b.url].custom)?pics[b.url].src:'';open('#editModal')}
+  if(btn.dataset.act==='edit') openEdit(b);
+  if(btn.dataset.act==='info') showInfo(b);
   if(btn.dataset.act==='del') ask('Delete "'+b.title.slice(0,60)+'"?',delMsg,()=>removeItems([b]).then(()=>toast('Deleted')));
 });
 $('#eSave').onclick=async()=>{const u=norm($('#eUrl').value); if(!u){toast("That link doesn't look right");return}
@@ -581,12 +755,17 @@ $('#eSave').onclick=async()=>{const u=norm($('#eUrl').value); if(!u){toast("That
 $('#eDelete').onclick=()=>{const b=editing; shut('#editModal'); ask('Delete "'+b.title.slice(0,60)+'"?',delMsg,()=>removeItems([b]).then(()=>toast('Deleted')))};
 
 /* ---------- toolbar ---------- */
-$('#chips').addEventListener('click',e=>{const c=e.target.closest('[data-folder]'); if(c){state.folder=c.dataset.folder;render()}});
-document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;render()});
+$('#chips').addEventListener('click',e=>{const c=e.target.closest('[data-folder]'); if(c) go({folder:c.dataset.folder,page:1})});
+document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>go({filter:b.dataset.filter,page:1}));
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{lsSet('linkArcade.view',b.dataset.view); go({view:b.dataset.view,site:null,page:1})});
+$('#sitebar').addEventListener('click',e=>{if(e.target.id==='backSites'){go({site:null,page:1});toTop()}});
+document.addEventListener('click',e=>{const p=e.target.closest('[data-page]'); if(!p||p.disabled) return; go({page:state.page+(p.dataset.page==='next'?1:-1)}); toTop();});
+document.addEventListener('change',e=>{if(e.target.matches('[data-per]')){const n=+e.target.value; lsSet('linkArcade.per',n); go({per:n,page:1});}});
+$('#infoModal').addEventListener('click',e=>{if(e.target===$('#infoModal')||e.target.hasAttribute('data-close')) infoOpen=null;});
 document.querySelectorAll('[data-sort]').forEach(btn=>btn.onclick=()=>{const k=btn.dataset.sort;
-  state.sort=state.sort.key===k?{key:k,dir:-state.sort.dir}:{key:k,dir:k==='date'?-1:1}; lsSet('linkArcade.sort',state.sort); render();});
+  state.sort=state.sort.key===k?{key:k,dir:-state.sort.dir}:{key:k,dir:(k==='date'||k==='posted')?-1:1}; state.page=1; lsSet('linkArcade.sort',state.sort); render();});
 $('#searchForm').onsubmit=e=>e.preventDefault();
-$('#q').oninput=e=>{state.q=e.target.value.trim();render()};
+$('#q').oninput=e=>go({q:e.target.value.trim(),page:1});
 $('#recheck').onclick=()=>{ if(state.remote===false){toast('Link checks run in the extension');return} if(checking){toast('Already checking…');return} checkSome(state.items.slice()) };
 $('#purge').onclick=()=>{const dead=state.items.filter(b=>b.status==='broken'); if(!dead.length){toast('No broken links. Nice!');return}
   ask('Remove '+dead.length+' broken link'+(dead.length>1?'s':'')+'?',(EXT?'They will be deleted from your browser bookmarks. ':'')+'Tip: click "Save backup" first if you might want them back.',
